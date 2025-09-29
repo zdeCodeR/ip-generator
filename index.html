@@ -1,0 +1,113 @@
+<button class="text-left px-6 py-4 text-white hover:bg-blue-800" onclick="showSection('iqcIphone'); toggleSidebar();">📱 ɪᴘʜᴏɴᴇ ǫᴜᴇᴛᴇᴅ ɢᴇɴᴇʀᴀᴛᴏʀ</button>
+
+<section id="iqcIphone" class="hidden space-y-6">
+  <div class="bg-card p-6 rounded-xl border border-border max-w-xl mx-auto">
+    <h1 class="text-2xl font-bold text-center text-white">📱 iPhone Quoted Generator</h1>
+    <div class="space-y-3">
+      <input type="text" id="iqcTime" placeholder="Jam (contoh: 18:00)" class="w-full p-3 rounded bg-bg border border-border text-white"/>
+      <input type="number" id="iqcBattery" placeholder="Batre (%)" class="w-full p-3 rounded bg-bg border border-border text-white"/>
+      <input type="text" id="iqcCarrier" placeholder="Carrier (contoh: Indosat)" class="w-full p-3 rounded bg-bg border border-border text-white"/>
+      <textarea id="iqcMessage" placeholder="Pesan kamu..." rows="3" class="w-full p-3 rounded bg-bg border border-border text-white"></textarea>
+      <button id="iqcGenerateBtn" onclick="generateIphoneChat()" class="bg-green-600 hover:bg-green-700 text-white w-full p-3 rounded font-bold">🚀 Generate</button>
+    </div>
+    <div id="iqcResult" class="mt-6 text-center space-y-4"></div>
+  </div>
+</section>
+
+
+<script>
+async function generateIphoneChat() {
+  const time = document.getElementById('iqcTime').value.trim();
+  const battery = document.getElementById('iqcBattery').value.trim();
+  const carrier = document.getElementById('iqcCarrier').value.trim();
+  const msg = document.getElementById('iqcMessage').value.trim();
+  const resultBox = document.getElementById('iqcResult');
+  const btn = document.getElementById('iqcGenerateBtn');
+  resultBox.innerHTML = "";
+
+  if (!time || !battery || !carrier || !msg) {
+    return Swal.fire("⚠️ Format Salah", "Lengkapi semua field.", "warning");
+  }
+
+  if (btn) btn.disabled = true;
+
+  Swal.fire({
+    title: "⏳ Tunggu sebentar...",
+    text: "Sedang membuat gambar...",
+    didOpen: () => Swal.showLoading(),
+    allowOutsideClick: false
+  });
+
+  const params = new URLSearchParams();
+  params.append('time', time);
+  params.append('batteryPercentage', battery);
+  params.append('carrierName', carrier);
+  params.append('messageText', msg);
+  params.append('emojiStyle', 'apple');
+  const originalUrl = `https://brat.siputzx.my.id/iphone-quoted?${params.toString()}`;
+
+  async function tryFetchWithRetries(url, maxAttempts = 3) {
+    let lastError = null;
+    for (let i = 1; i <= maxAttempts; i++) {
+      try {
+        resultBox.innerHTML = `<div id="iqcStatus">Mencoba ${i}/${maxAttempts} — ${url.includes('allorigins') ? 'via proxy' : 'langsung'}</div>`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const blob = await res.blob();
+        return blob;
+      } catch (err) {
+        lastError = err;
+        if (i < maxAttempts) await new Promise(r => setTimeout(r, 600 * i));
+      }
+    }
+    throw lastError;
+  }
+
+  let blob = null;
+  try {
+    blob = await tryFetchWithRetries(originalUrl, 3);
+  } catch (directErr) {
+    console.warn('Direct fetch failed, trying proxy fallback...', directErr);
+    try {
+      const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(originalUrl)}`;
+      blob = await tryFetchWithRetries(proxy, 2);
+    } catch (proxyErr) {
+      console.error('Proxy fallback failed', proxyErr);
+    }
+  }
+
+  Swal.close();
+  if (!blob) {
+    if (btn) btn.disabled = false;
+    const msgErr = 'Terjadi kesalahan saat menghubungi API. Coba lagi nanti.';
+    resultBox.innerHTML = `<div class="text-white font-medium">${msgErr}</div>`;
+    return Swal.fire("❌ Gagal", "Terjadi kesalahan saat menghubungi API. Cek console untuk detail.", "error");
+  }
+
+  try {
+    const imgUrl = URL.createObjectURL(blob);
+    resultBox.innerHTML = `
+      <h3 class="text-white font-bold">✅ Sukses Generate!</h3>
+      <p>Jam: ${time} | Batre: ${battery}% | Carrier: ${carrier}</p>
+      <img src="${imgUrl}" class="rounded-lg border border-border mx-auto" alt="iPhone quoted image"/>
+      <div class="mt-3 flex justify-center gap-3">
+        <a href="${imgUrl}" download="iphone_chat.png">
+          <button class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded">⬇️ Download</button>
+        </a>
+        <button id="iqcOpenTabBtn" class="bg-slate-700 text-white px-4 py-2 rounded">🔍 Buka di tab</button>
+      </div>
+    `;
+
+    const openBtn = document.getElementById('iqcOpenTabBtn');
+    if (openBtn) openBtn.addEventListener('click', () => window.open(imgUrl, '_blank'));
+  } catch (e) {
+    console.error('Failed to display image', e);
+    resultBox.innerHTML = `<div class="text-white font-medium">Gagal menampilkan gambar (console untuk detail).</div>`;
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+
+
+</script>
